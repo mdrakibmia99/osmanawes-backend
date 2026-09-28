@@ -3,6 +3,8 @@ import httpStatus from 'http-status';
 import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
 import { MessageService } from './message.service';
+import AppError from '../../error/AppError';
+import { storeFiles } from '../../utils/fileHelper';
 
 const sendMessage = catchAsync(async (req: Request, res: Response) => {
   const senderId = req.user.userId;
@@ -59,10 +61,45 @@ const deleteMessageForMe = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+const uploadChatDocument = catchAsync(async (req: Request, res: Response) => {
+  const files = req.files as { [fieldName: string]: Express.Multer.File[] } | undefined;
+  const chatFiles = files?.uploadChatDocument;
 
+  if (!chatFiles || chatFiles.length === 0) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Please upload at least one document');
+  }
+
+  // 1. Process files using your existing helper
+  const filePaths = await storeFiles('chatDocuments', files);
+
+  const storedPaths = filePaths.uploadChatDocument;
+
+  if (!storedPaths || storedPaths.length === 0) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Failed to store uploaded files');
+  }
+
+  // 2. Map files to match your Mongoose Schema / Zod validation structure
+  const formattedDocuments = chatFiles.map((file, index) => ({
+    url: storedPaths[index],
+    fileType: file.mimetype,
+    name: file.originalname,
+    size: file.size,
+  }));
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: 'Chat documents uploaded successfully',
+    data: {
+      documents: formattedDocuments,
+      chatType: 'file',
+    },
+  });
+});
 export const MessageController = {
   sendMessage,
   getMessagesByChatId,
   deleteMessageForEveryone,
   deleteMessageForMe,
+  uploadChatDocument,
 };

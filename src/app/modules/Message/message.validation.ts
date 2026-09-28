@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const attachmentZodSchema = z.object({
-  url: z.string().url({ message: 'Attachment must have a valid URL' }),
+  url: z.string(),
   fileType: z.string().min(1, { message: 'File type is required' }),
   name: z.string().optional(),
   size: z.number().positive().optional(),
