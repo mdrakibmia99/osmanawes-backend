@@ -19,9 +19,21 @@ const aws = {
   region: process.env.AWS_REGION,
   base_url: process.env.AWS_BASE_URL,
 }
+
+const redis = {
+  url: process.env.REDIS_URL,
+  host: process.env.REDIS_HOST || '127.0.0.1',
+  port: Number(process.env.REDIS_PORT) || 6379,
+  password: process.env.REDIS_PASSWORD || undefined,
+  db: Number(process.env.REDIS_DB) || 0,
+  default_ttl: Number(process.env.REDIS_DEFAULT_TTL) || 300,
+  enabled: process.env.REDIS_ENABLED !== 'false',
+  key_prefix: process.env.REDIS_KEY_PREFIX || 'limaoscar:',
+};
+
 export default {
   NODE_ENV: process.env.NODE_ENV,
-  port: process.env.PORT,
+  port: Number(process.env.PORT) || 5000,
   ip: process.env.IP,
   admin_email: process.env.ADMIN_EMAIL,
   admin_password: process.env.ADMIN_PASSWORD,
@@ -47,7 +59,7 @@ export default {
 
 
   // otp_expire_time: process.env.OTP_EXPIRE_TIME,
-  socket_port: process.env.SOCKET_PORT,
+  socket_port: Number(process.env.SOCKET_PORT) || 5001,
   CLIENT_CORS_ORIGIN: process.env.CLIENT_CORS_ORIGIN,
   // google_map_api_key: process.env.GOOGLE_MAP_API_KEY,
 
@@ -58,5 +70,6 @@ export default {
   storage_provider: process.env.STORAGE_PROVIDER,
   smtp,
   stripe,
-  aws
+  aws,
+  redis,
 };

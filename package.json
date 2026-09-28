@@ -10,6 +10,7 @@
     "prettier": "prettier --ignore-path .gitignore --write \"./src/**/*.+(js|ts|json)\"",
     "prettier:fix": "prettier --write .",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:redis": "ts-node src/app/redis/redis.test.ts",
     "start:prod": "node ./dist/server.js"
   },
   "keywords": [],
@@ -19,6 +20,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",
     "@aws-sdk/lib-storage": "^3.1101.0",
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcrypt": "^6.0.0",
     "colors": "^1.4.0",
     "cookie-parser": "^1.4.7",
@@ -35,6 +37,7 @@
     "helmet": "^8.1.0",
     "http-status": "^2.1.0",
     "install": "^0.13.0",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "jwks-rsa": "^4.0.1",
     "mime-types": "^3.0.2",

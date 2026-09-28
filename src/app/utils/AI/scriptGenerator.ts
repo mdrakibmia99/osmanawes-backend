@@ -48,7 +48,7 @@ export const generatePracticeScript = async (
   }
 
   // 🔒 enforce limit (skip for premium)
-  if (!isUnlimited && scriptGeneratedCount >= scriptLimit) {
+  if (!isUnlimited && (scriptGeneratedCount ?? 0) >= scriptLimit) {
     throw new AppError(
       httpStatus.FORBIDDEN,
       `Script generation limit reached for ${subscriptionType} plan`

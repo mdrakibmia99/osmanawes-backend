@@ -1,25 +1,20 @@
+import { HydratedDocument, Model, Types } from 'mongoose';
 import { IAddress } from '../../interface/common.interface';
 import { LOGIN_WITH_INTERFACE } from '../auth/auth.constant';
-import { SUBSCRIPTION_INTERFACE, USER_ROLE, USER_ROLE_INTERFACE, VOICE_SPECIALIST_TYPES_INTERFACE } from './user.constants';
-import { HydratedDocument, Model, Schema } from 'mongoose';
+import { GENDER_INTERFACE, SUBSCRIPTION_INTERFACE, USER_ROLE, USER_ROLE_INTERFACE } from './user.constants';
 
-
-
-
-
-export interface TUserCreate {
+export interface TUser {
+  _id?: Types.ObjectId | string;
+  appleId?: string;
   email: string;
   password: string;
   role: USER_ROLE_INTERFACE;
-
   address?: IAddress;
 
-  // common fields
+  // common fields for all users
   fullName?: string;
   dob?: Date;
-  gender?: string;
-
-
+  gender?: GENDER_INTERFACE;
 
   phone?: {
     code?: string;
@@ -36,43 +31,62 @@ export interface TUserCreate {
   isDeleted?: boolean;
 
   passwordChangedAt?: Date | null;
-
-
   loginWth?: LOGIN_WITH_INTERFACE;
-  lastActiveAt: Date;
-
   fcmToken?: string | null;
-  subscriptionType: SUBSCRIPTION_INTERFACE;
-  subscriptionExpiresAt: Date | null;
-  scriptGeneratedCount: number
+
+  lastActiveAt?: Date;
+
+  // Optional AI / Subscription fields
+  subscriptionType?: SUBSCRIPTION_INTERFACE;
+  subscriptionExpiresAt?: Date | null;
+  scriptGeneratedCount?: number;
+
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-export interface TUser extends TUserCreate {
-  _id: string;
+export interface TUserCreate {
+  email: string;
+  password: string;
+  fullName?: string;
+  role?: USER_ROLE_INTERFACE;
   appleId?: string;
-  fcmToken?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  address?: IAddress;
+  dob?: Date;
+  gender?: GENDER_INTERFACE;
+  phone?: {
+    code?: string;
+    number?: string;
+  };
+  profileImage?: string;
+  about?: string;
+  isBlocked?: boolean;
+  isVerifiedByAdmin?: boolean;
+  hasCompletedProfile?: boolean;
+  isDeleted?: boolean;
+  passwordChangedAt?: Date | null;
+  loginWth?: LOGIN_WITH_INTERFACE;
+  fcmToken?: string | null;
+  lastActiveAt?: Date;
+  subscriptionType?: SUBSCRIPTION_INTERFACE;
+  subscriptionExpiresAt?: Date | null;
+  scriptGeneratedCount?: number;
 }
 
 export interface DeleteAccountPayload {
   password: string;
 }
 
-
 export interface IUserValidationForGoogle {
   accessToken: string;
-  role: typeof USER_ROLE.USER
+  role?: typeof USER_ROLE.USER;
   isOrganizationProfile?: boolean;
-
 }
+
 export interface UserModel extends Model<TUser> {
-  isUserExist(email: string): Promise<TUser>;
-
-  isUserActive(email: string): Promise<TUser>;
-
+  isUserExist(email: string): Promise<TUser | null>;
+  isUserActive(email: string): Promise<TUser | null>;
   IsUserExistById(id: string): Promise<HydratedDocument<TUser> | null>;
-
   isPasswordMatched(
     plainTextPassword: string,
     hashedPassword: string,
@@ -85,6 +99,3 @@ export type IPaginationOption = {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 };
-
-
-

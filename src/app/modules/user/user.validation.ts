@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { USER_ROLE, VOICE_SPECIALIST_TYPES_ENUM } from './user.constants';
+import { USER_ROLE } from './user.constants';
 
 const userValidationSchema = z.object({
   body: z.object({

@@ -86,7 +86,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // -------------------------
 
 app.get('/', (_req: Request, res: Response) => {
-  const projectName = "OSMANAWES BACKEND";
+  const projectName = "LIMA_OSCAAR BACKEND";
   res.send(serverHomePage(projectName));
 });
 app.use('/api/v1', router);

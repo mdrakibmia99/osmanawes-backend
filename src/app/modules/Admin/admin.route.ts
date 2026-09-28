@@ -2,8 +2,7 @@ import { Router } from "express";
 import auth from "../../middleware/auth";
 import { USER_ROLE } from "../user/user.constants";
 import { adminController } from "./admin.controller";
-import validateRequest from "../../middleware/validateRequest";
-import { adminValidation } from "./admin.validation";
+
 
 export const adminRoutes = Router();
 

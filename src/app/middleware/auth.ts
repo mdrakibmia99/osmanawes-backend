@@ -63,7 +63,7 @@ const auth = (...allowedRoles: string[]) => {
 
     // update user active status and last active time
     const now = new Date();
-      const last = new Date(user.lastActiveAt);
+      const last = user.lastActiveAt ? new Date(user.lastActiveAt) : new Date(0);
 
       const diff = (now.getTime() - last.getTime()) / 1000; // seconds
 

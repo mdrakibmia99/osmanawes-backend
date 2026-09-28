@@ -279,3 +279,5 @@ export const userController = {
 
 
 };
+
+export const UserController = userController;

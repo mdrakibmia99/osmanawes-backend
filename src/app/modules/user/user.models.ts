@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import { Error, model, Query, Schema } from 'mongoose';
 import config from '../../config';
 import { TUser, UserModel } from './user.interface';
-import { gender, GENDER_ENUM, SUBSCRIPTION_TYPES, SUBSCRIPTION_TYPES_ENUM, USER_ROLE, USER_ROLE_ENUM, VOICE_SPECIALIST_TYPES_ENUM } from './user.constants';
+import { gender, GENDER_ENUM, SUBSCRIPTION_TYPES, SUBSCRIPTION_TYPES_ENUM, USER_ROLE, USER_ROLE_ENUM } from './user.constants';
 import { LOGIN_WITH, LOGIN_WITH_ENUM } from '../auth/auth.constant';
 import { AddressSchema } from '../../utils/locationWithLatLan';
 import { string } from 'zod';
@@ -97,21 +97,7 @@ const userSchema = new Schema<TUser>(
     },
 
     fcmToken: { type: String, default: null },
-    subscriptionType: {
-      type: String,
-      enum: SUBSCRIPTION_TYPES_ENUM,
-      default: SUBSCRIPTION_TYPES.FREE,
-    },
-    subscriptionExpiresAt: {
-      type: Date,
-      default: null,
-    },
-    scriptGeneratedCount: {
-      type: Number,
-      default: 0,
-    },
-
-
+    lastActiveAt: { type: Date, default: null },
   },
   {
     timestamps: true,
@@ -126,47 +112,21 @@ const userSchema = new Schema<TUser>(
 // =======================
 // USER SEARCH INDEXES
 // =======================
-
-// Base guard search filter
 userSchema.index({
   role: 1,
-  isUserActive: 1,
   isBlocked: 1,
   isDeleted: 1,
 });
-
-// Name / email search
 userSchema.index({
-  fullName: 1,
   email: 1,
 });
 
-// Guard category & experience
-userSchema.index({
-  guardServices: 1,
-  yearsOfExperience: 1,
-});
 
-// Gender filter
-userSchema.index({
-  gender: 1,
-});
 
-// Rating filter
-userSchema.index({
-  averageRating: -1,
-});
 
-// Hourly rate filtering & sorting
-userSchema.index({
-  'hourlyRates.guardType': 1,
-  'hourlyRates.rate': 1,
-});
 
-// Default sorting fallback
-userSchema.index({
-  createdAt: -1,
-});
+
+
 
 
 

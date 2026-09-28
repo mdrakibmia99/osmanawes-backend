@@ -2,7 +2,7 @@ export const USER_ROLE = {
   ADMIN: 'admin',
   SUPER_ADMIN: 'super_admin',
   USER: 'user',
-  OPTIONAL: 'optional', // For routes that can be accessed by both authenticated and non-authenticated users
+  OPTIONAL: 'optional', 
 } as const;
 
 
@@ -19,23 +19,7 @@ export const gender = {
 export type GENDER_INTERFACE = typeof gender[keyof typeof gender];
 export const GENDER_ENUM = Object.values(gender);
 
-// category and voice specialty types for scripts and user profiles
-export const VOICE_SPECIALIST_TYPES = {
-  E_LEARNING: 'E-Learning',
-  CHARACTER: 'Character',
-  NARRATION: 'Narration',
-  VIDEO_GAME: 'Video Game',
-  ANIMATION: 'Animation',
-  COMMERCIAL: 'Commercial',
-  ANNOUNCER: "Announcer",
 
-
-
-} as const;
-
-export type VOICE_SPECIALIST_TYPES_INTERFACE = typeof VOICE_SPECIALIST_TYPES[keyof typeof VOICE_SPECIALIST_TYPES];
-
-export const VOICE_SPECIALIST_TYPES_ENUM = Object.values(VOICE_SPECIALIST_TYPES);
 
 
 export const SUBSCRIPTION_TYPES = {

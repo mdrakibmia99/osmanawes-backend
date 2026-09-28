@@ -1,5 +1,5 @@
-import { connectedUsers } from "../../socketIo";
+import { isUserOnline as checkUserOnline } from '../../socket';
 
-export const isUserOnline = (userId: string): boolean => {
-  return connectedUsers.has(userId.toString());
+export const isUserOnline = async (userId: string): Promise<boolean> => {
+  return await checkUserOnline(userId.toString());
 };

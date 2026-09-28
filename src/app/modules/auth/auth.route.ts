@@ -4,7 +4,6 @@ import auth from '../../middleware/auth';
 import validateRequest from '../../middleware/validateRequest';
 import { authValidation } from './auth.validation';
 import { USER_ROLE } from '../user/user.constants';
-import { authLimiter } from '../../utils/rateLimiter';
 import { userValidation } from '../user/user.validation';
 import { userController } from '../user/user.controller';
 
@@ -12,8 +11,6 @@ export const authRoutes = Router();
 
 authRoutes
   .post('/login', validateRequest(authValidation.loginZodValidationSchema), authControllers.login)
-  .post('/dashboard-login', validateRequest(authValidation.loginZodValidationSchema), authControllers.dashboardLogin)
-  // .post('/login', validateRequest(authValidation.loginZodValidationSchema), authLimiter, authControllers.login)
   .post('/create-or-login-google-user', validateRequest(userValidation.userValidationForGoogleSchema), userController.createOrLoginUserWithGoogle)
   .post('/create-or-login-apple-user', validateRequest(userValidation.userValidationForGoogleSchema), userController.createOrLoginUserWithApple)
 
@@ -50,16 +47,10 @@ authRoutes
   )
   .patch(
     '/forgot-password-reset',
-    // auth(USER_ROLE.VENDOR, USER_ROLE.USER, USER_ROLE.ADMIN),
     validateRequest(authValidation.resetPasswordValidationSchema),
     authControllers.resetPassword,
   )
-  // .patch(
-  //   '/send-or-resend-otp-phone',
-  //   // validateRequest(authValidation.resetPasswordValidationSchema),
-  //   auth(USER_ROLE.VENDOR),
-  //   authControllers.resendOtpPhone,
-  // )
+
   .patch(
     '/verification-phone-otp-match',
     validateRequest(authValidation.otpMatchValidationSchema),

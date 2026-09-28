@@ -43,28 +43,12 @@ const login = async (payload: TLogin) => {
     throw new AppError(httpStatus.BAD_REQUEST, 'Password does not match');
   }
   console.log("user after password ->>>>> ", user);
+  if (user.isDeleted) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Your account is deleted. Please contact to admin.');
+  }
   return generateAndReturnTokens(user);
 };
-const dashboardLogin = async (payload: TLogin) => {
-  console.log('payload', payload);
-  const user = await User.findOne({ email: payload?.email }).select('+password');
 
-  console.log("user ->>>>> ", user);
-
-  if (!user) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'User not found');
-  }
-  if (user.role !== USER_ROLE.ADMIN && user.role !== USER_ROLE.SUPER_ADMIN) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'User not Found!!');
-  }
-
-  const checkPassword = await User.isPasswordMatched(payload.password, user.password)
-  if (!checkPassword) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Password does not match');
-  }
-  console.log("user after password ->>>>> ", user);
-  return generateAndReturnTokens(user);
-};
 const googleLogin = async (accessToken: string) => {
   // Check if the user exists
   const googleUser = await verifyGoogleToken(accessToken);
@@ -82,6 +66,7 @@ const googleLogin = async (accessToken: string) => {
     if (user.isBlocked) throw new AppError(httpStatus.FORBIDDEN, 'User account is blocked');
 
     const onlyUsrData = await User.findById(user._id);
+    
     return generateAndReturnTokens(onlyUsrData);
 
 
@@ -504,7 +489,6 @@ const resendOtpPhone = async (token: string) => {
 };
 export const authServices = {
   login,
-  dashboardLogin,
   googleLogin,
   forgotPasswordOtpMatch,
   phoneVerificationOtpMatch,

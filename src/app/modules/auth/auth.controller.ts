@@ -34,34 +34,7 @@ const login = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-const dashboardLogin = catchAsync(async (req: Request, res: Response) => {
 
-  console.log('login-1')
-  const result = await authServices.dashboardLogin(req.body);
-  console.log('login-2');
-  const cookieOptions: any = {
-    secure: false,
-    httpOnly: true,
-    maxAge: 31536000000,
-  };
-
-  if (config.NODE_ENV !== 'development') {
-    cookieOptions.sameSite = 'none';
-  }
-  res.cookie('refreshToken', result.refreshToken, {
-    secure: config.NODE_ENV !== 'development',
-    // httpOnly: true,
-    // sameSite: 'none',
-    maxAge: 1000 * 60 * 60 * 24 * 365,
-  });
-
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: 'Logged in successfully',
-    data: result,
-  });
-});
 const googleLogin = catchAsync(async (req: Request, res: Response) => {
 
   const result = await authServices.googleLogin(req.body.accessToken);
@@ -200,7 +173,6 @@ const resendOtpPhone = catchAsync(async (req: Request, res: Response) => {
 
 export const authControllers = {
   login,
-  dashboardLogin,
   googleLogin,
   changePassword,
   forgotPassword,

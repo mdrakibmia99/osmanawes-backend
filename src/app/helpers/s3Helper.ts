@@ -8,14 +8,25 @@ import path from 'path';
 
 import config from '../config';
 
-const s3Client = new S3Client({
-  region: config.aws.region,
-  maxAttempts: 3,
-  credentials: {
-    accessKeyId: config.aws.access_key_id as string,
-    secretAccessKey: config.aws.secret_access_key as string,
-  },
-});
+const s3Client =
+  config.storage_provider === 's3'
+    ? new S3Client({
+        region: config.aws.region,
+        maxAttempts: 3,
+        credentials: {
+          accessKeyId: config.aws.access_key_id as string,
+          secretAccessKey: config.aws.secret_access_key as string,
+        },
+      })
+    : null;
+
+const getS3Client = (): S3Client => {
+  if (!s3Client) {
+    throw new Error('S3 storage provider is not configured.');
+  }
+
+  return s3Client;
+};
 
 const sanitizeFolder = (folder: string): string => {
   return folder.replace(/[^a-zA-Z0-9/_-]/g, '');
@@ -49,7 +60,7 @@ export const uploadToS3 = async (
   const key = generateFileName(file.originalname, folder);
 
   const upload = new Upload({
-    client: s3Client,
+    client: getS3Client(),
     params: {
       Bucket: config.aws.s3_bucket_name as string,
       Key: key,
@@ -89,7 +100,7 @@ export const deleteFromS3 = async (
       key = decodeURIComponent(url.pathname.substring(1));
     }
 
-    await s3Client.send(
+    await getS3Client().send(
       new DeleteObjectCommand({
         Bucket: config.aws.s3_bucket_name as string,
         Key: key,

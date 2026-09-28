@@ -55,16 +55,6 @@ userRoutes.patch(
   validateRequest(userValidation.updateProfileSchema),
   userController.updateMyProfile,
 )
-// userRoutes.patch(
-//   '/update-my-profile2',
-//   auth(USER_ROLE.USER, USER_ROLE.ADMIN, USER_ROLE.SUPER_ADMIN),
-//   upload.fields([
-//     { name: 'image', maxCount: 1 }
-//   ]),
-//   parseData(),
-//   validateRequest(userValidation.updateProfileSchema),
-//   userController.updateMyProfile2,
-// )
 
   .post(
     '/set-or-remove-fcm-token',

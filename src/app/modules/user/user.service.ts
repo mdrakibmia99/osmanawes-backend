@@ -14,7 +14,7 @@ import { createToken, verifyToken } from '../../utils/tokenManage';
 import { USER_ROLE } from './user.constants';
 import { IJwtPayload } from '../auth/auth.interface';
 import { generateAndReturnTokens, verifyAppleToken, verifyGoogleToken } from '../auth/auth.utils';
-
+import { RedisService, cacheService, cacheKeys, CACHE_TTL } from '../../redis';
 
 import { LOGIN_WITH } from '../auth/auth.constant';
 
@@ -250,7 +250,18 @@ const getAllUserQuery = async (
   userId: string,
   query: Record<string, unknown>,
 ) => {
-  const userQuery = new QueryBuilder(User.find({ _id: { $ne: userId } }), query)
+  // Build cache key based on query parameters
+  const queryHash = JSON.stringify(query);
+  const cacheKey = `users:list:${userId}:${queryHash}`;
+
+  // 1. Check Redis cache first
+  const cachedUsers = await RedisService.get<{ meta: any; result: any }>(cacheKey);
+  if (cachedUsers) {
+    return cachedUsers;
+  }
+
+  // 2. Cache miss: Fetch from MongoDB using lean() for maximum performance
+  const userQuery = new QueryBuilder(User.find({ _id: { $ne: userId } }).lean(), query)
     .search(['fullName'])
     .filter()
     .sort()
@@ -259,7 +270,12 @@ const getAllUserQuery = async (
 
   const result = await userQuery.modelQuery;
   const meta = await userQuery.countTotal();
-  return { meta, result };
+  const responseData = { meta, result };
+
+  // 3. Store in Redis with TTL (300 seconds / 5 minutes)
+  await RedisService.set(cacheKey, responseData, 300);
+
+  return responseData;
 };
 
 const getAllUserCount = async () => {
@@ -268,79 +284,96 @@ const getAllUserCount = async () => {
 };
 
 const getUsersOverview = async (userId: string, year: any) => {
-  try {
-    // Fetch total user count
-    const totalUsers = await User.countDocuments();
+  const cacheKey = cacheKeys.usersOverview(year);
 
-    // Fetch user growth over time for the specified year (monthly count with month name)
-    const userOverview = await User.aggregate([
-      {
-        $match: {
-          createdAt: {
-            $gte: new Date(`${year}-01-01`),
-            $lt: new Date(`${year + 1}-01-01`),
-          }, // Filter by year
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      // Fetch total user count
+      const totalUsers = await User.countDocuments();
+
+      // Fetch user growth over time for the specified year (monthly count with month name)
+      const userOverview = await User.aggregate([
+        {
+          $match: {
+            createdAt: {
+              $gte: new Date(`${year}-01-01`),
+              $lt: new Date(`${year + 1}-01-01`),
+            }, // Filter by year
+          },
         },
-      },
-      {
-        $group: {
-          _id: { $month: '$createdAt' }, // Group by month of the 'createdAt' date
-          count: { $sum: 1 },
+        {
+          $group: {
+            _id: { $month: '$createdAt' }, // Group by month of the 'createdAt' date
+            count: { $sum: 1 },
+          },
         },
-      },
-      {
-        $project: {
-          _id: 1,
-          count: 1,
-          monthName: {
-            $switch: {
-              branches: [
-                { case: { $eq: ['$_id', 1] }, then: 'January' },
-                { case: { $eq: ['$_id', 2] }, then: 'February' },
-                { case: { $eq: ['$_id', 3] }, then: 'March' },
-                { case: { $eq: ['$_id', 4] }, then: 'April' },
-                { case: { $eq: ['$_id', 5] }, then: 'May' },
-                { case: { $eq: ['$_id', 6] }, then: 'June' },
-                { case: { $eq: ['$_id', 7] }, then: 'July' },
-                { case: { $eq: ['$_id', 8] }, then: 'August' },
-                { case: { $eq: ['$_id', 9] }, then: 'September' },
-                { case: { $eq: ['$_id', 10] }, then: 'October' },
-                { case: { $eq: ['$_id', 11] }, then: 'November' },
-                { case: { $eq: ['$_id', 12] }, then: 'December' },
-              ],
-              default: 'Unknown', // Default value in case month is not valid
+        {
+          $project: {
+            _id: 1,
+            count: 1,
+            monthName: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ['$_id', 1] }, then: 'January' },
+                  { case: { $eq: ['$_id', 2] }, then: 'February' },
+                  { case: { $eq: ['$_id', 3] }, then: 'March' },
+                  { case: { $eq: ['$_id', 4] }, then: 'April' },
+                  { case: { $eq: ['$_id', 5] }, then: 'May' },
+                  { case: { $eq: ['$_id', 6] }, then: 'June' },
+                  { case: { $eq: ['$_id', 7] }, then: 'July' },
+                  { case: { $eq: ['$_id', 8] }, then: 'August' },
+                  { case: { $eq: ['$_id', 9] }, then: 'September' },
+                  { case: { $eq: ['$_id', 10] }, then: 'October' },
+                  { case: { $eq: ['$_id', 11] }, then: 'November' },
+                  { case: { $eq: ['$_id', 12] }, then: 'December' },
+                ],
+                default: 'Unknown', // Default value in case month is not valid
+              },
             },
           },
         },
-      },
-      { $sort: { _id: 1 } }, // Sort by month (ascending)
-    ]);
+        { $sort: { _id: 1 } }, // Sort by month (ascending)
+      ]);
 
-    // Fetch recent users
-    const recentUsers = await User.find({ _id: { $ne: userId } })
-      .sort({ createdAt: -1 })
-      .limit(6);
+      // Fetch recent users
+      const recentUsers = await User.find({ _id: { $ne: userId } })
+        .sort({ createdAt: -1 })
+        .limit(6);
 
-    return {
-      totalUsers,
-      userOverview, // Includes month names with user counts
-      recentUsers,
-    };
-  } catch (error) {
-    console.error('Error fetching dashboard overview:', error);
-    throw new Error('Error fetching dashboard data.');
-  }
+      return {
+        totalUsers,
+        userOverview, // Includes month names with user counts
+        recentUsers,
+      };
+    },
+    CACHE_TTL.ONE_HOUR // 1 hour TTL
+  );
 };
 
 const getUserById = async (id: string) => {
-  const result = await User.findById(id);
-  if (!result) {
+  const cacheKey = `user:${id}:detail`;
+
+  // 1. Check Redis cache first
+  const cachedUser = await RedisService.get(cacheKey);
+  if (cachedUser) {
+    return cachedUser;
+  }
+
+  // 2. Cache miss: Fetch from MongoDB using lean()
+  const user = await User.findById(id).lean();
+  if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
-  return result;
+
+  // 3. Set to Redis with TTL (300 seconds)
+  await RedisService.set(cacheKey, user, 300);
+
+  // 4. Return the fresh result
+  return user;
 };
 
-// Optimized the function to improve performance, reducing the processing time to 235 milliseconds.
+// Optimized the function with Redis caching (Configurable TTL: 10 minutes)
 const getMyProfile = async (id: string, fields?: string) => {
   // ✅ Default fields to include when no 'fields' query param is provided
   const defaultFields = ['dob', 'gender', 'phone', 'address', 'profileImage', 'bio', 'role', 'email', 'fullName', 'badgeId'];
@@ -350,15 +383,22 @@ const getMyProfile = async (id: string, fields?: string) => {
     ? fields.split(',').map(f => f.trim()).join(' ') // if fields provided, use only them
     : defaultFields.join(' '); // otherwise, use defaults
 
-  // ✅ Fetch user data from the database
-  const userData = await User.findById(id).populate('badgeId').select(selectFields);
+  const cacheKey = cacheKeys.userProfile(id, fields);
 
-  if (!userData) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
-  }
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      // ✅ Fetch user data from the database
+      const userData = await User.findById(id).populate('badgeId').select(selectFields);
 
-  // ✅ Return the user data
-  return userData;
+      if (!userData) {
+        throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+      }
+
+      return userData;
+    },
+    CACHE_TTL.TEN_MINUTES // 10 minutes TTL
+  );
 };
 
 
@@ -376,9 +416,17 @@ const completeMyProfile = async (userId: string, payload: Partial<TUser>) => {
   if (!updateProfile) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
+
+  // ✅ Auto-delete cached profile & user lists whenever data changes
+  await Promise.all([
+    cacheService.delByPattern(cacheKeys.userPattern(userId)),
+    cacheService.delByPattern(cacheKeys.usersAllPattern()),
+  ]);
+
   console.log('updateProfile', updateProfile);
   return updateProfile;
 };
+
 const updateMyProfile = async (userId: string, payload: Partial<TUser>) => {
   const updateProfile = await User.findByIdAndUpdate(
     userId,
@@ -388,24 +436,16 @@ const updateMyProfile = async (userId: string, payload: Partial<TUser>) => {
   if (!updateProfile) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
+
+  // ✅ Auto-delete cached profile & user lists whenever data changes
+  await Promise.all([
+    cacheService.delByPattern(cacheKeys.userPattern(userId)),
+    cacheService.delByPattern(cacheKeys.usersAllPattern()),
+  ]);
+
   const token= generateAndReturnTokens(updateProfile);
   return {...updateProfile,accessToken:token.accessToken};
 };
-// const updateMyProfile2 = async (userId: string, payload: Partial<TUser>) => {
-//   const updateProfile = await User.findByIdAndUpdate(
-//     userId,
-//     { $set: payload },
-//     { new: true, runValidators: true }
-//   ).lean();
-//   if (!updateProfile) {
-//     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
-//   }
-//   const token= generateAndReturnTokens(updateProfile);
-//   return {...updateProfile,accessToken:token.accessToken};
-// };
-
-
-
 
 const deleteMyAccount = async (id: string, payload: DeleteAccountPayload) => {
   const user: TUser | null = await User.IsUserExistById(id);
@@ -432,19 +472,30 @@ const deleteMyAccount = async (id: string, payload: DeleteAccountPayload) => {
     throw new AppError(httpStatus.BAD_REQUEST, 'user deleting failed');
   }
 
+  // ✅ Auto-delete cached profile upon deletion
+  await Promise.all([
+    cacheService.delByPattern(cacheKeys.userPattern(id)),
+    cacheService.delByPattern(cacheKeys.usersAllPattern()),
+  ]);
+
   return userDeleted;
 };
 
 
 
 const getUserProfile = async (userId: string) => {
-  const profile = await User.findById(
-    userId
-  ).lean();
-  if (!profile) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
-  }
-  return profile;
+  const cacheKey = cacheKeys.userProfile(userId);
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      const profile = await User.findById(userId).lean();
+      if (!profile) {
+        throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+      }
+      return profile;
+    },
+    CACHE_TTL.TEN_MINUTES
+  );
 };
 const checkVerifiedStatus = async (token: any) => {
   if (!token) {
@@ -519,3 +570,6 @@ export const userService = {
   createOrLoginUserWithApple,
   fcmTokenSetOrRemove
 };
+
+export const UserService = userService;
+
