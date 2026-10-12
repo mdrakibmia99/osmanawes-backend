@@ -6,6 +6,7 @@ import { notificationRoutes } from '../modules/notifications/notifications.route
 import { adminRoutes } from '../modules/Admin/admin.route';
 import { chatRoutes } from '../modules/Chat/chat.route';
 import { messageRoutes } from '../modules/Message/message.route';
+import { categoryRoutes } from '../modules/category/category.route';
 
 const router = Router();
 
@@ -37,6 +38,14 @@ const moduleRoutes = [
   {
     path: '/messages',
     route: messageRoutes,
+  },
+  {
+    path: '/categories',
+    route: categoryRoutes,
+  },
+  {
+    path: '/category',
+    route: categoryRoutes,
   },
 ];
 

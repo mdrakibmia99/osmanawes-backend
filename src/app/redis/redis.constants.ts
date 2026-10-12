@@ -42,6 +42,12 @@ export const cacheKeys = {
   adminDashboard: (type: string, param: string = '') => `admin:dashboard:${type}:${param || 'default'}`,
   adminPattern: () => `admin:*`,
 
+  // Category domain
+  categoryById: (categoryId: string) => `category:${categoryId}:detail`,
+  categoriesList: (queryString: string = '') => `categories:list:${queryString || 'all'}`,
+  categoriesAllPattern: () => `categories:*`,
+  categorySinglePattern: () => `category:*`,
+
   // Generic helper
   custom: (entity: string, identifier: string | number) => `${entity}:${identifier}`,
   customPattern: (entity: string) => `${entity}:*`,

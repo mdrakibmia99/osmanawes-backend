@@ -117,9 +117,7 @@ userSchema.index({
   isBlocked: 1,
   isDeleted: 1,
 });
-userSchema.index({
-  email: 1,
-});
+
 
 
 
