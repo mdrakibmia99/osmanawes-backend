@@ -2,6 +2,7 @@ import {
   DeleteObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import fs from 'fs';
 import { Upload } from '@aws-sdk/lib-storage';
 import crypto from 'crypto';
 import path from 'path';
@@ -110,7 +111,29 @@ export const deleteFromS3 = async (
     console.error('S3 Delete Error:', error);
   }
 };
+export const cleanupCategoryUpload = async (
+  file?: Express.Multer.File,
+  storedImage?: string
+) => {
+  if (config.storage_provider === 's3') {
+    if (storedImage) {
+      await deleteFromS3(storedImage);
+    }
+    return;
+  }
 
+  if (!file?.path) {
+    return;
+  }
+
+  try {
+    await fs.promises.unlink(file.path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error('Category upload cleanup failed:', error);
+    }
+  }
+};
 export const s3Helper = {
   uploadToS3,
   uploadMultipleToS3,

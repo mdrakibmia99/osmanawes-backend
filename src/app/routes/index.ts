@@ -7,6 +7,7 @@ import { adminRoutes } from '../modules/Admin/admin.route';
 import { chatRoutes } from '../modules/Chat/chat.route';
 import { messageRoutes } from '../modules/Message/message.route';
 import { categoryRoutes } from '../modules/category/category.route';
+import { subscriptionRoutes } from '../modules/subscription/subscription.route';
 
 const router = Router();
 
@@ -46,6 +47,10 @@ const moduleRoutes = [
   {
     path: '/category',
     route: categoryRoutes,
+  },
+  {
+    path: '/subscriptions',
+    route: subscriptionRoutes,
   },
 ];
 

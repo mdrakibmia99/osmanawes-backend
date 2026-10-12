@@ -48,6 +48,13 @@ export const cacheKeys = {
   categoriesAllPattern: () => `categories:*`,
   categorySinglePattern: () => `category:*`,
 
+  // Subscription & Plan domain
+  activePlans: () => `subscription:plans:active`,
+  plansAllPattern: () => `subscription:plans:*`,
+  userActiveSubscription: (userId: string) => `subscription:user:${userId}:active`,
+  subscriptionPattern: (userId: string) => `subscription:user:${userId}:*`,
+  subscriptionsAllPattern: () => `subscription:*`,
+
   // Generic helper
   custom: (entity: string, identifier: string | number) => `${entity}:${identifier}`,
   customPattern: (entity: string) => `${entity}:*`,

@@ -3,6 +3,20 @@ import { IAddress } from '../../interface/common.interface';
 import { LOGIN_WITH_INTERFACE } from '../auth/auth.constant';
 import { GENDER_INTERFACE, SUBSCRIPTION_INTERFACE, USER_ROLE, USER_ROLE_INTERFACE } from './user.constants';
 
+export interface TBusinessAddress {
+  coordinates?: [number, number];
+  address?: string;
+}
+
+export interface TBusinessDetails {
+  businessName?: string;
+  businessNumber?: string;
+  categoryId?: Types.ObjectId | string;
+  shortBio?: string;
+  coverPhoto?: string;
+  BusinessAddress?: TBusinessAddress;
+}
+
 export interface TUser {
   _id?: Types.ObjectId | string;
   appleId?: string;
@@ -41,6 +55,13 @@ export interface TUser {
   subscriptionExpiresAt?: Date | null;
   scriptGeneratedCount?: number;
 
+  // Business specific fields (applicable when role === 'business')
+  businessDetails?: TBusinessDetails;
+  openingHoursId?: Types.ObjectId | string;
+  subscriptionId?: Types.ObjectId | string;
+  queueId?: Types.ObjectId | string;
+  LegalCompliance?: string[];
+
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -71,6 +92,11 @@ export interface TUserCreate {
   subscriptionType?: SUBSCRIPTION_INTERFACE;
   subscriptionExpiresAt?: Date | null;
   scriptGeneratedCount?: number;
+  businessDetails?: TBusinessDetails;
+  openingHoursId?: Types.ObjectId | string;
+  subscriptionId?: Types.ObjectId | string;
+  queueId?: Types.ObjectId | string;
+  LegalCompliance?: string[];
 }
 
 export interface DeleteAccountPayload {

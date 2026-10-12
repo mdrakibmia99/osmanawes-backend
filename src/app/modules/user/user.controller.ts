@@ -259,6 +259,37 @@ const fcmTokenSetOrRemove = catchAsync(async (req: Request, res: Response) => {
     data: subscriptionStatus,
   });
 });
+
+const completeBusinessProfile = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.completeBusinessProfile(
+    req.user.userId,
+    req.body,
+    req.files as { [fieldName: string]: Express.Multer.File[] },
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Business profile completed successfully',
+    data: result,
+  });
+});
+
+const updateBusinessProfile = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.updateBusinessProfile(
+    req.user.userId,
+    req.body,
+    req.files as { [fieldName: string]: Express.Multer.File[] },
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Business profile updated successfully',
+    data: result,
+  });
+});
+
 export const userController = {
   createUser,
   userCreateVerification,
@@ -274,10 +305,9 @@ export const userController = {
   createOrLoginUserWithGoogle,
   createOrLoginUserWithApple,
   fcmTokenSetOrRemove,
-  completeMyProfile
-
-
-
+  completeMyProfile,
+  completeBusinessProfile,
+  updateBusinessProfile,
 };
 
 export const UserController = userController;

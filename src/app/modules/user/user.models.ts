@@ -75,7 +75,7 @@ const userSchema = new Schema<TUser>(
     },
     isVerifiedByAdmin: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     hasCompletedProfile: {
       type: Boolean,
@@ -98,6 +98,63 @@ const userSchema = new Schema<TUser>(
 
     fcmToken: { type: String, default: null },
     lastActiveAt: { type: Date, default: null },
+
+    // Business Role Specific Fields
+    businessDetails: {
+      type: new Schema(
+        {
+          businessName: {
+            type: String,
+            trim: true,
+          },
+          businessNumber: {
+            type: String,
+            trim: true,
+          },
+          categoryId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Category',
+          },
+          shortBio: {
+            type: String,
+            trim: true,
+          },
+          coverPhoto: {
+            type: String,
+            default: '',
+          },
+          BusinessAddress: {
+            coordinates: {
+              type: [Number],
+            },
+            address: {
+              type: String,
+            },
+          },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
+    openingHoursId: {
+      type: Schema.Types.ObjectId,
+      ref: 'OpeningHour',
+      default: null,
+    },
+    subscriptionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Subscription',
+      default: null,
+    },
+    queueId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Queue',
+      default: null,
+    },
+    LegalCompliance: {
+      type: [String],
+      default: undefined,
+    },
   },
   {
     timestamps: true,

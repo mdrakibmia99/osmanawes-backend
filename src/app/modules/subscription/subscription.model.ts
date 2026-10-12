@@ -1,113 +1,62 @@
-import { subscriptionController } from './subscription.controller';
-import { model, Schema } from 'mongoose';
-import { TTransaction, TransactionModel, ISubscriptionPlan, SubscriptionPlanModel } from './subscription.interface';
-import { SUBSCRIPTION_PLANS_ENUM, SUBSCRIPTION_STATUS_ENUM, SUBSCRIPTION_STATUS } from './subscription.constants';
+import { Schema, model } from 'mongoose';
+import { ISubscription } from './subscription.interface';
 
-const transactionSchema = new Schema<TTransaction>(
+const subscriptionSchema = new Schema<ISubscription>(
   {
-    userId: {
+    user: {
       type: Schema.Types.ObjectId,
-      required: true,
       ref: 'User',
-    },
-    subscriptionPlanId: {
-      type: Schema.Types.ObjectId,
       required: true,
-      ref: 'SubscriptionPlan',
+      index: true,
     },
     plan: {
-      type: String,
-      enum: SUBSCRIPTION_PLANS_ENUM,
+      type: Schema.Types.ObjectId,
+      ref: 'Plan',
       required: true,
     },
-
-
-    price: {
-      type: Number,
+    stripeCustomerId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    stripeSubscriptionId: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: {
+        values: ['active', 'canceled', 'past_due', 'unpaid', 'incomplete'],
+        message: '{VALUE} is not a valid status',
+      },
+      default: 'active',
+      index: true,
+    },
+    autoRenew: {
+      type: Boolean,
+      default: true, // auto-renew will be enabled by default upon purchase
+    },
+    currentPeriodStart: {
+      type: Date,
       required: true,
     },
-
-    paymentMethod: {
-      type: String,
-      default: 'stripe',
+    currentPeriodEnd: {
+      type: Date,
+      required: true,
+      index: true,
     },
-    paymentIntentId: {
-      type: String,
-    },
-
-    notes: {
-      type: String,
+    cancelAt: {
+      type: Date,
     },
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-    },
-  },
+  }
 );
 
-// Indexes for common queries
-transactionSchema.index({ userId: 1, status: 1 });
-transactionSchema.index({ userId: 1, endDate: 1 });
-transactionSchema.index({ status: 1, endDate: 1 });
-transactionSchema.index({ transactionId: 1 }, { unique: true, sparse: true });
+// Compound index to quickly filter the user's current active subscription
+subscriptionSchema.index({ user: 1, status: 1 });
 
-// Filter out soft-deleted documents if applicable
-transactionSchema.pre('aggregate', function (next) {
-  this.pipeline().unshift({ $match: { isDeleted: { $ne: true } } });
-  next();
-});
-
-export const Transaction = model<TTransaction, TransactionModel>(
-  'Transaction',
-  transactionSchema
-);
-
-// =====================
-// Subscription Plan Model
-// =====================
-const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
-  {
-    title: {
-      type: String,
-      enum: ['free', 'pro', 'premium'],
-      required: true,
-      unique: true,
-    },
-    description: {
-      type: String,
-      default: '',
-    },
-    price: {
-      type: Number,
-      default: 0,
-    },
-    durationInDays: {
-      type: Number,
-      default: 30,
-
-    },
-    features: [
-      {
-        type: String,
-      },
-    ],
-
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  { timestamps: true }
-);
-
-subscriptionPlanSchema.pre('aggregate', function (next) {
-  this.pipeline().unshift({ $match: { isDeleted: { $ne: true } } });
-  next();
-});
-
-export const SubscriptionPlan = model<ISubscriptionPlan, SubscriptionPlanModel>(
-  'SubscriptionPlan',
-  subscriptionPlanSchema
-);
+export const Subscription = model<ISubscription>('Subscription', subscriptionSchema);

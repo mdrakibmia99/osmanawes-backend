@@ -1,7 +1,10 @@
+
 import httpStatus from 'http-status';
 import QueryBuilder from '../../builder/QueryBuilder';
 import AppError from '../../error/AppError';
+import { cleanupCategoryUpload } from '../../helpers/s3Helper';
 import { RedisService, cacheService, cacheKeys, CACHE_TTL } from '../../redis';
+import { storeFile } from '../../utils/fileHelper';
 import { CATEGORY_SEARCHABLE_FIELDS } from './category.constants';
 import { ICategory } from './category.interface';
 import { Category } from './category.model';
@@ -16,13 +19,29 @@ const clearCategoryCache = async () => {
   ]);
 };
 
-const createCategory = async (payload: ICategory) => {
-  const isCategoryExist = await Category.findOne({ name: payload.name });
-  if (isCategoryExist) {
-    throw new AppError(httpStatus.CONFLICT, 'Category already exists!');
-  }
+const createCategory = async (
+  payload: ICategory,
+  file?: Express.Multer.File
+) => {
+  let storedImage: string | undefined;
+  let result;
 
-  const result = await Category.create(payload);
+  try {
+    const isCategoryExist = await Category.findOne({ name: payload.name });
+    if (isCategoryExist) {
+      throw new AppError(httpStatus.CONFLICT, 'Category already exists!');
+    }
+
+    if (!file && !payload.image) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Category image is required!');
+    }
+
+    storedImage = file ? await storeFile('category', file) : payload.image;
+    result = await Category.create({ ...payload, image: storedImage });
+  } catch (error) {
+    await cleanupCategoryUpload(file, storedImage);
+    throw error;
+  }
 
   // Clear category cache by pattern
   await clearCategoryCache();
@@ -82,26 +101,43 @@ const getCategoryById = async (id: string) => {
   return category;
 };
 
-const updateCategory = async (id: string, payload: Partial<ICategory>) => {
-  const isCategoryExist = await Category.findById(id);
-  if (!isCategoryExist) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Category not found!');
-  }
+const updateCategory = async (
+  id: string,
+  payload: Partial<ICategory>,
+  file?: Express.Multer.File
+) => {
+  let storedImage: string | undefined;
+  let result;
 
-  if (payload.name) {
-    const isDuplicate = await Category.findOne({
-      name: payload.name,
-      _id: { $ne: id },
-    });
-    if (isDuplicate) {
-      throw new AppError(httpStatus.CONFLICT, 'Category name already exists!');
+  try {
+    const isCategoryExist = await Category.findById(id);
+    if (!isCategoryExist) {
+      throw new AppError(httpStatus.NOT_FOUND, 'Category not found!');
     }
-  }
 
-  const result = await Category.findByIdAndUpdate(id, payload, {
-    new: true,
-    runValidators: true,
-  }).lean();
+    if (payload.name) {
+      const isDuplicate = await Category.findOne({
+        name: payload.name,
+        _id: { $ne: id },
+      });
+      if (isDuplicate) {
+        throw new AppError(httpStatus.CONFLICT, 'Category name already exists!');
+      }
+    }
+
+    storedImage = file ? await storeFile('category', file) : undefined;
+    const updatePayload = storedImage
+      ? { ...payload, image: storedImage }
+      : payload;
+
+    result = await Category.findByIdAndUpdate(id, updatePayload, {
+      new: true,
+      runValidators: true,
+    }).lean();
+  } catch (error) {
+    await cleanupCategoryUpload(file, storedImage);
+    throw error;
+  }
 
   // Clear category cache by pattern
   await clearCategoryCache();

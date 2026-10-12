@@ -4,8 +4,7 @@ const createCategoryValidationSchema = z.object({
   body: z.object({
     name: z.string({
       message: 'Category name is required',
-    }).min(1, 'Category name cannot be empty'),
-    image: z.string().optional(),
+    }).min(1, 'Category name cannot be empty')
   }),
 });
 

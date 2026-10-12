@@ -1,71 +1,94 @@
+import { Request, Response } from 'express';
+import httpStatus from 'http-status';
 import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
 import { subscriptionService } from './subscription.service';
-import httpStatus from 'http-status';
-import { Request, Response } from 'express';
-import { IJwtPayload } from '../auth/auth.interface';
 
-const createSubscription = catchAsync(async (req: Request, res: Response) => {
-  const result = await subscriptionService.createSubscription(req.body);
+// ==========================================
+// Plan Controllers
+// ==========================================
+
+const createPlan = catchAsync(async (req: Request, res: Response) => {
+  const result = await subscriptionService.createPlan(req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message: 'Subscription created successfully',
+    message: 'Subscription plan created successfully',
     data: result,
   });
 });
 
-const getMySubscriptions = catchAsync(async (req: Request, res: Response) => {
-  const { userId } = req.user;
-  const result = await subscriptionService.getUserSubscriptions(userId);
+const getActivePlans = catchAsync(async (req: Request, res: Response) => {
+  const result = await subscriptionService.getActivePlans();
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'my current subscription plan',
+    message: 'Active subscription plans retrieved successfully',
     data: result,
   });
 });
 
-const getActiveSubscription = catchAsync(async (req: Request, res: Response) => {
-  const { userId } = req.user;
-  const result = await subscriptionService.getActiveSubscription(userId);
+const getAllPlans = catchAsync(async (req: Request, res: Response) => {
+  const result = await subscriptionService.getAllPlans(req.query);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Active subscription fetched successfully',
+    message: 'All subscription plans retrieved successfully',
+    meta: result.meta,
+    data: result.result,
+  });
+});
+
+const updatePlan = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const result = await subscriptionService.updatePlan(id, req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Subscription plan updated successfully',
     data: result,
   });
 });
 
-const updateSubscription = catchAsync(async (req: Request, res: Response) => {
-  const result = await subscriptionService.updateSubscription(
-    req.params.id as any,
-    req.body
-  );
+const deletePlan = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const result = await subscriptionService.deletePlan(id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Subscription plan deleted successfully',
+    data: result,
+  });
+});
+
+// ==========================================
+// Subscription Controllers
+// ==========================================
+
+const adminCreateSubscription = catchAsync(async (req: Request, res: Response) => {
+  const result = await subscriptionService.adminCreateSubscription(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: 'Subscription created for user successfully by admin',
+    data: result,
+  });
+});
+
+const adminUpdateSubscription = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const result = await subscriptionService.adminUpdateSubscription(id, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Subscription updated successfully',
-    data: result,
-  });
-});
-
-const cancelSubscription = catchAsync(async (req: Request, res: Response) => {
-  const { userId } = req.user;
-  const result = await subscriptionService.cancelSubscription(
-    req.params.id as any,
-    userId,
-    req.body?.reason
-  );
-
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: 'Subscription cancelled successfully',
     data: result,
   });
 });
@@ -76,85 +99,45 @@ const getAllSubscriptions = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'All subscriptions fetched successfully',
-    data: result.result,
+    message: 'All subscriptions retrieved successfully',
     meta: result.meta,
+    data: result.result,
   });
 });
 
-
-
-// =====================
-// Subscription Plan Controllers
-// =====================
-const createSubscriptionPlan = catchAsync(async (req: Request, res: Response) => {
-  const result = await subscriptionService.createSubscriptionPlan(req.body);
-
-  sendResponse(res, {
-    statusCode: httpStatus.CREATED,
-    success: true,
-    message: 'Subscription plan created successfully',
-    data: result,
-  });
-});
-
-const updateSubscriptionPlan = catchAsync(async (req: Request, res: Response) => {
-  const result = await subscriptionService.updateSubscriptionPlan(
-    req.params.id as any,
-    req.body
-  );
+const getMyActiveSubscription = catchAsync(async (req: Request, res: Response) => {
+  const { userId } = req.user;
+  const result = await subscriptionService.getMyActiveSubscription(userId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Subscription plan updated successfully',
+    message: 'Active subscription retrieved successfully',
     data: result,
   });
 });
 
-const getAllSubscriptionPlans = catchAsync(async (req: Request, res: Response) => {
-  console.log('Fetching all subscription plans');
-  const result = await subscriptionService.getAllSubscriptionPlans();
-  console.log('Transaction created:', result);
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: 'Subscription plans fetched successfully',
-    data: result,
-  });
-});
-const createTransaction = catchAsync(async (req: Request, res: Response) => {
-  const result = await subscriptionService.createTransaction(req.user.userId, req.body);
-
-
-  sendResponse(res, {
-    statusCode: httpStatus.CREATED,
-    success: true,
-    message: 'Transaction created successfully',
-    data: result,
-  });
-});
-const getAllTransactions = catchAsync(async (req: Request, res: Response) => {
-  const result = await subscriptionService.getAllTransactions(req.user as IJwtPayload, req.query);
+const getSubscriptionById = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const result = await subscriptionService.getSubscriptionById(id);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Transactions fetched successfully',
+    message: 'Subscription retrieved successfully',
     data: result,
   });
 });
 
 export const subscriptionController = {
-  createSubscription,
-  getMySubscriptions,
-  getActiveSubscription,
-  updateSubscription,
-  cancelSubscription,
+  createPlan,
+  getActivePlans,
+  getAllPlans,
+  updatePlan,
+  deletePlan,
+  adminCreateSubscription,
+  adminUpdateSubscription,
   getAllSubscriptions,
-  createSubscriptionPlan,
-  updateSubscriptionPlan,
-  getAllSubscriptionPlans,
-  createTransaction,
-  getAllTransactions
+  getMyActiveSubscription,
+  getSubscriptionById,
 };

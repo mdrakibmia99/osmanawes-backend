@@ -1,54 +1,34 @@
-import { HydratedDocument, Model, Schema, Types } from 'mongoose';
-import { SUBSCRIPTION_PLANS_INTERFACE, SUBSCRIPTION_STATUS_INTERFACE } from './subscription.constants';
+import { Types } from 'mongoose';
 
-export interface TSubscriptionCreate {
-  userId: Schema.Types.ObjectId | string;
-  plan: SUBSCRIPTION_PLANS_INTERFACE;
-  status?: SUBSCRIPTION_STATUS_INTERFACE;
-  startDate: Date;
-  endDate: Date;
-  price: number;
-  currency?: string;
-  paymentMethod?: string;
-  transactionId?: string;
-  notes?: string;
+export type TSubscriptionStatus =
+  | 'active'
+  | 'canceled'
+  | 'past_due'
+  | 'unpaid'
+  | 'incomplete';
+
+export interface ISubscription {
+  _id?: Types.ObjectId | string;
+  user: Types.ObjectId | string;
+  plan: Types.ObjectId | string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  status: TSubscriptionStatus;
+  autoRenew: boolean;
+  currentPeriodStart: Date;
+  currentPeriodEnd: Date;
+  cancelAt?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-export interface TSubscriptionUpdate {
-  plan: SUBSCRIPTION_PLANS_INTERFACE;
-  status: SUBSCRIPTION_STATUS_INTERFACE;
-  notes: string;
-}
-
-export interface TTransaction extends TSubscriptionCreate {
-  _id: string;
-  subscriptionPlanId: Schema.Types.ObjectId | string;
-  paymentIntentId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface TransactionModel extends Model<TTransaction> {
-  isActiveSubscription(userId: string): Promise<TTransaction | null>;
-  getUserSubscriptions(userId: string): Promise<TTransaction[]>;
-}
-
-// =====================
-// Subscription Plan Interface
-// =====================
-export interface ISubscriptionPlan {
-  title: 'free' | 'pro' | 'premium';
-  stripePriceId:string
-  description: string;
-  price: number;
-  durationInDays: number;
-  features: string[];
-  isActive: boolean;
-  _id: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface SubscriptionPlanModel extends Model<ISubscriptionPlan> {
-  getActivePlans(): Promise<ISubscriptionPlan[]>;
+export interface IAdminCreateSubscriptionPayload {
+  userId: string;
+  planId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  status?: TSubscriptionStatus;
+  autoRenew?: boolean;
+  currentPeriodStart?: string | Date;
+  currentPeriodEnd?: string | Date;
 }

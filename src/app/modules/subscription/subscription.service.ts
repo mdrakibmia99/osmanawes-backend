@@ -1,336 +1,257 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import httpStatus from 'http-status';
 import AppError from '../../error/AppError';
-import { Transaction, SubscriptionPlan } from './subscription.model';
-import { TSubscriptionCreate, TSubscriptionUpdate, ISubscriptionPlan } from './subscription.interface';
+import { Plan } from './plan.model';
+import { Subscription } from './subscription.model';
+import { IPlan } from './plan.interface';
+import {
+  IAdminCreateSubscriptionPayload,
+  ISubscription,
+} from './subscription.interface';
 import QueryBuilder from '../../builder/QueryBuilder';
-import { SUBSCRIPTION_STATUS } from './subscription.constants';
-import mongoose from 'mongoose';
 import { User } from '../user/user.models';
-import { IJwtPayload } from '../auth/auth.interface';
-import { USER_ROLE } from '../user/user.constants';
+import { cacheKeys, cacheService, CACHE_TTL } from '../../redis';
 
-const createSubscription = async (payload: TSubscriptionCreate) => {
-  const existingSubscription = await Transaction.findOne({
-    userId: payload.userId,
-    status: SUBSCRIPTION_STATUS.ACTIVE,
+// ==========================================
+// Plan Services (Admin CRUD + Cached Reads)
+// ==========================================
+
+const createPlan = async (payload: IPlan) => {
+  const existingPlan = await Plan.findOne({
+    name: payload.name,
+    billingCycle: payload.billingCycle,
   });
 
-  if (existingSubscription) {
+  if (existingPlan) {
     throw new AppError(
-      httpStatus.BAD_REQUEST,
-      'User already has an active subscription'
+      httpStatus.CONFLICT,
+      `A ${payload.billingCycle} plan with name '${payload.name}' already exists.`,
     );
   }
 
-  const subscription = await Transaction.create(payload);
+  const newPlan = await Plan.create(payload);
 
-  if (!subscription) {
-    throw new AppError(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      'Failed to create subscription'
-    );
-  }
+  // Invalidate plan caches
+  await cacheService.delByPattern(cacheKeys.plansAllPattern());
 
-  return subscription;
+  return newPlan;
 };
 
-const getUserSubscriptions = async (userId: string) => {
-  const subscriptions = await User.findById(userId).select('subscriptionType subscriptionExpiresAt').lean();
-  return subscriptions;
-};
+const getActivePlans = async () => {
+  const cacheKey = cacheKeys.activePlans();
 
-const getActiveSubscription = async (userId: string) => {
-  const subscription = await Transaction.findOne({
-    userId,
-    status: SUBSCRIPTION_STATUS.ACTIVE,
-    endDate: { $gte: new Date() },
-  }).sort({ endDate: -1 });
-
-  return subscription;
-};
-
-const updateSubscription = async (
-  subscriptionId: string,
-  payload: Partial<TSubscriptionUpdate>
-) => {
-  const subscription = await Transaction.findById(subscriptionId);
-
-  if (!subscription) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Subscription not found');
-  }
-
-  const updatedSubscription = await Transaction.findByIdAndUpdate(
-    subscriptionId,
-    { $set: payload },
-    { new: true, runValidators: true }
-  );
-
-  if (!updatedSubscription) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Subscription not found');
-  }
-
-  return updatedSubscription;
-};
-
-const cancelSubscription = async (
-  subscriptionId: string,
-  userId: string,
-  reason?: string
-) => {
-  const subscription = await Transaction.findById(subscriptionId);
-
-  if (!subscription) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Subscription not found');
-  }
-
-  if (subscription.status !== SUBSCRIPTION_STATUS.ACTIVE) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      'Only active subscriptions can be cancelled'
-    );
-  }
-
-  const cancelledSubscription = await Transaction.findByIdAndUpdate(
-    subscriptionId,
-    {
-      $set: {
-        status: SUBSCRIPTION_STATUS.CANCELLED,
-        cancelledAt: new Date(),
-        cancelledBy: userId,
-        notes: reason
-          ? `${subscription.notes || ''} | Cancellation reason: ${reason}`
-          : subscription.notes,
-      },
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      return await Plan.find({ isActive: true }).sort({ price: 1 }).lean();
     },
-    { new: true, runValidators: true }
+    CACHE_TTL.ONE_HOUR,
   );
-
-  return cancelledSubscription;
 };
 
-const getAllSubscriptions = async (query: Record<string, unknown>) => {
-  const subscriptionQuery = new QueryBuilder(
-    Transaction.find().populate('userId', 'fullName email'),
-    query
-  )
-    .search(['plan', 'transactionId'])
+const getAllPlans = async (query: Record<string, unknown>) => {
+  const planQuery = new QueryBuilder(Plan.find(), query)
+    .search(['name', 'billingCycle'])
     .filter()
     .sort()
     .paginate()
     .fields();
 
-  const result = await subscriptionQuery.modelQuery;
-  const meta = await subscriptionQuery.countTotal();
+  const meta = await planQuery.countTotal();
+  const result = await planQuery.modelQuery;
 
   return { meta, result };
 };
 
-
-
-const checkSubscriptionExpiry = async () => {
-  const now = new Date();
-
-  const expiredSubscriptions = await Transaction.updateMany(
-    {
-      status: SUBSCRIPTION_STATUS.ACTIVE,
-      endDate: { $lt: now },
-    },
-    {
-      $set: { status: SUBSCRIPTION_STATUS.EXPIRED },
-    }
-  );
-
-  return expiredSubscriptions;
-};
-
-// =====================
-// Subscription Plan Services
-// =====================
-const createSubscriptionPlan = async (payload: ISubscriptionPlan) => {
-  const existingPlan = await SubscriptionPlan.findOne({ title: payload.title });
-
-  if (existingPlan) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      `Subscription plan '${payload.title}' already exists`
-    );
-  }
-
-  const plan = await SubscriptionPlan.create(payload);
-
-  if (!plan) {
-    throw new AppError(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      'Failed to create subscription plan'
-    );
-  }
-
-  return plan;
-};
-
-const updateSubscriptionPlan = async (
-  planId: string,
-  payload: Partial<ISubscriptionPlan>
-) => {
-  const plan = await SubscriptionPlan.findById(planId);
-
-  if (!plan) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Subscription plan not found');
-  }
-
-  const updatedPlan = await SubscriptionPlan.findByIdAndUpdate(
+const updatePlan = async (planId: string, payload: Partial<IPlan>) => {
+  const updatedPlan = await Plan.findByIdAndUpdate(
     planId,
     { $set: payload },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 
   if (!updatedPlan) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Subscription plan not found');
+    throw new AppError(httpStatus.NOT_FOUND, 'Plan not found');
   }
+
+  // Invalidate plan caches
+  await cacheService.delByPattern(cacheKeys.plansAllPattern());
 
   return updatedPlan;
 };
 
-const getAllSubscriptionPlans = async () => {
-  const plans = await SubscriptionPlan.find({ isActive: true }).sort({
-    price: 1,
+const deletePlan = async (planId: string) => {
+  const deletedPlan = await Plan.findByIdAndDelete(planId);
+
+  if (!deletedPlan) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Plan not found');
+  }
+
+  // Invalidate plan caches
+  await cacheService.delByPattern(cacheKeys.plansAllPattern());
+
+  return deletedPlan;
+};
+
+// ====================================================
+// Subscription Services (Admin Managed + Redis Caching)
+// ====================================================
+
+const adminCreateSubscription = async (
+  payload: IAdminCreateSubscriptionPayload,
+) => {
+  const {
+    userId,
+    planId,
+    stripeCustomerId,
+    stripeSubscriptionId,
+    status = 'active',
+    autoRenew = true,
+  } = payload;
+
+  // 1. Verify User exists
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Target user not found');
+  }
+
+  // 2. Verify Plan exists
+  const plan = await Plan.findById(planId);
+  if (!plan) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Selected plan not found');
+  }
+
+  // 3. Compute subscription dates
+  const startDate = payload.currentPeriodStart
+    ? new Date(payload.currentPeriodStart)
+    : new Date();
+
+  let endDate: Date;
+  if (payload.currentPeriodEnd) {
+    endDate = new Date(payload.currentPeriodEnd);
+  } else {
+    endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + (plan.durationInMonths || 1));
+  }
+
+  // 4. Create Subscription
+  const newSubscription = await Subscription.create({
+    user: userId,
+    plan: planId,
+    stripeCustomerId,
+    stripeSubscriptionId,
+    status,
+    autoRenew,
+    currentPeriodStart: startDate,
+    currentPeriodEnd: endDate,
   });
 
-  return plans;
-};
+  // 5. Link subscription ID to User document
+  await User.findByIdAndUpdate(userId, {
+    $set: { subscriptionId: newSubscription._id },
+  });
 
-
-
-
-
-
-
-
-// transaction part  
-const createTransaction = async (
-  userId: string,
-  payload: any
-) => {
-  const session = await mongoose.startSession();
-
-  try {
-    session.startTransaction();
-
-    // 1. Validate ObjectIds
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Invalid user id');
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(payload.subscriptionPlanId)) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Invalid subscription id');
-    }
-
-    // 2. Validate amount
-    if (payload.amount <= 0) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Amount must be greater than 0');
-    }
-
-    // 3. Check subscription exists
-    const subscriptionPlan = await SubscriptionPlan.findById(payload.subscriptionPlanId).session(session);
-
-    if (!subscriptionPlan) {
-      throw new AppError(httpStatus.NOT_FOUND, 'Subscription plan not found');
-    }
-
-
-    // 6. Create transaction
-    const transaction = await Transaction.create(
-      [
-        {
-
-          userId,
-          subscriptionPlanId: payload.subscriptionPlanId,
-          plan: subscriptionPlan.title,
-          price: subscriptionPlan.price,
-          transactionId: payload.transactionId,
-
-
-        },
-      ],
-      { session }
-    );
-    await User.findByIdAndUpdate(
-      userId,
-      {
-        $set: {
-          subscriptionType: subscriptionPlan.title,
-          subscriptionExpiresAt: new Date(Date.now() + subscriptionPlan.durationInDays * 24 * 60 * 60 * 1000),
-        },
-      },
-      { session }
-    );
-
-
-    await session.commitTransaction();
-    session.endSession();
-
-    return transaction[0];
-  } catch (err: any) {
-    await session.abortTransaction();
-    session.endSession();
-
-    if (err.code === 11000) {
-      throw new AppError(httpStatus.CONFLICT, 'Transaction ID already exists');
-    }
-
-    throw err;
-  }
-};
-
-const getAllTransactions = async (
-  user: IJwtPayload,
-  query: Record<string, unknown>
-) => {
-  let transactionQuery;
- console.log({ user },"user====");
-  // Admin → get all transactions
-  if (user.role === USER_ROLE.ADMIN || user.role === USER_ROLE.SUPER_ADMIN) {
-    transactionQuery = Transaction.find({})
-      .populate({
-        path: 'userId',
-        select: 'fullName email profileImage role',
-      })
-      .populate({
-        path: 'subscriptionPlanId',
-        select: 'title price duration',
-      });
-  } else {
-    // Normal user → only own transactions
-    transactionQuery = Transaction.find({ userId: user.userId })
-      .populate({
-        path: 'subscriptionPlanId',
-        select: 'title price duration',
-      });
-  }
-
-  // QueryBuilder apply
-  const qb = new QueryBuilder(transactionQuery, query);
-  qb.filter().paginate().fields().sort();
-
-  const [transactions, meta] = await Promise.all([
-    qb.modelQuery.lean(),
-    qb.countTotal(),
+  // 6. Invalidate relevant caches (user profile & subscriptions)
+  await Promise.all([
+    cacheService.delByPattern(cacheKeys.userPattern(userId)),
+    cacheService.delByPattern(cacheKeys.subscriptionPattern(userId)),
+    cacheService.delByPattern(cacheKeys.usersAllPattern()),
   ]);
 
-  return { transactions, meta };
+  return newSubscription;
 };
+
+const adminUpdateSubscription = async (
+  subscriptionId: string,
+  payload: Partial<ISubscription>,
+) => {
+  const existingSubscription = await Subscription.findById(subscriptionId);
+  if (!existingSubscription) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Subscription not found');
+  }
+
+  const updatedSubscription = await Subscription.findByIdAndUpdate(
+    subscriptionId,
+    { $set: payload },
+    { new: true, runValidators: true },
+  ).populate('plan');
+
+  if (!updatedSubscription) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Subscription not found');
+  }
+
+  const userId = existingSubscription.user.toString();
+
+  // Invalidate relevant caches
+  await Promise.all([
+    cacheService.delByPattern(cacheKeys.userPattern(userId)),
+    cacheService.delByPattern(cacheKeys.subscriptionPattern(userId)),
+  ]);
+
+  return updatedSubscription;
+};
+
+const getAllSubscriptions = async (query: Record<string, unknown>) => {
+  const subscriptionQuery = new QueryBuilder(
+    Subscription.find().populate('user', 'email fullName role businessDetails').populate('plan'),
+    query,
+  )
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const meta = await subscriptionQuery.countTotal();
+  const result = await subscriptionQuery.modelQuery;
+
+  return { meta, result };
+};
+
+const getMyActiveSubscription = async (userId: string) => {
+  const cacheKey = cacheKeys.userActiveSubscription(userId);
+
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      const activeSubscription = await Subscription.findOne({
+        user: userId,
+        status: 'active',
+        currentPeriodEnd: { $gte: new Date() },
+      })
+        .populate('plan')
+        .sort({ currentPeriodEnd: -1 })
+        .lean();
+
+      return activeSubscription;
+    },
+    CACHE_TTL.TEN_MINUTES,
+  );
+};
+
+const getSubscriptionById = async (subscriptionId: string) => {
+  const subscription = await Subscription.findById(subscriptionId)
+    .populate('user', 'email fullName role businessDetails')
+    .populate('plan')
+    .lean();
+
+  if (!subscription) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Subscription not found');
+  }
+
+  return subscription;
+};
+
 export const subscriptionService = {
-  createSubscription,
-  getUserSubscriptions,
-  getActiveSubscription,
-  updateSubscription,
-  cancelSubscription,
+  // Plan methods
+  createPlan,
+  getActivePlans,
+  getAllPlans,
+  updatePlan,
+  deletePlan,
+
+  // Subscription methods
+  adminCreateSubscription,
+  adminUpdateSubscription,
   getAllSubscriptions,
-  checkSubscriptionExpiry,
-  createSubscriptionPlan,
-  updateSubscriptionPlan,
-  getAllSubscriptionPlans,
-  createTransaction,
-  getAllTransactions
+  getMyActiveSubscription,
+  getSubscriptionById,
 };

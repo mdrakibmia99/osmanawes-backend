@@ -17,7 +17,10 @@ import { generateAndReturnTokens, verifyAppleToken, verifyGoogleToken } from '..
 import { RedisService, cacheService, cacheKeys, CACHE_TTL } from '../../redis';
 
 import { LOGIN_WITH } from '../auth/auth.constant';
-
+import { OpeningHour } from '../openingHour/openingHour.model';
+import { Queue } from '../queue/queue.model';
+import { Category } from '../category/category.model';
+import { storeFile, storeFiles } from '../../utils/fileHelper';
 
 export type IFilter = {
   searchTerm?: string;
@@ -33,8 +36,8 @@ export interface OTPVerifyAndCreateUserProps {
 const createUserToken = async (payload: TUserCreate) => {
   console.log('Payload received in user token service');
 
-  const { email, fullName, password } = payload;
-
+  const { email, fullName, password, role } = payload;
+  const userRole = role || USER_ROLE.USER;
 
   // Check if user already exists
   const userExist = await User.findOne({ email }).setOptions({ ignoreDeleted: true });
@@ -86,7 +89,8 @@ const createUserToken = async (payload: TUserCreate) => {
   const tokenPayload: Partial<TUserCreate> = {
     email,
     password,
-    fullName
+    fullName,
+    role: userRole,
   };
   console.log('Token payload:', tokenPayload);
   const token = createToken({
@@ -117,7 +121,7 @@ const otpVerifyAndCreateUser = async ({
     throw new AppError(httpStatus.BAD_REQUEST, 'You are not authorized');
   }
 
-  const { password, email, fullName } = decodeData as any;
+  const { password, email, fullName, role } = decodeData as any;
   console.log('decodeData', decodeData);
   // Check OTP match
   const isOtpValid = await otpServices.otpMatch(email, otp);
@@ -137,8 +141,9 @@ const otpVerifyAndCreateUser = async ({
   const userData = {
     email,
     password,
-    fullName
-  }
+    fullName,
+    role: role || USER_ROLE.USER,
+  };
   // Create user
   const newUser = await User.create(userData);
   if (!newUser) {
@@ -376,11 +381,27 @@ const getUserById = async (id: string) => {
 // Optimized the function with Redis caching (Configurable TTL: 10 minutes)
 const getMyProfile = async (id: string, fields?: string) => {
   // ✅ Default fields to include when no 'fields' query param is provided
-  const defaultFields = ['dob', 'gender', 'phone', 'address', 'profileImage', 'bio', 'role', 'email', 'fullName', 'badgeId'];
+  const defaultFields = [
+    'dob',
+    'gender',
+    'phone',
+    'address',
+    'profileImage',
+    'about',
+    'role',
+    'email',
+    'fullName',
+    'hasCompletedProfile',
+    'businessDetails',
+    'openingHoursId',
+    'queueId',
+    'subscriptionId',
+    'LegalCompliance',
+  ];
 
   // ✅ Determine which fields to select
   const selectFields = fields
-    ? fields.split(',').map(f => f.trim()).join(' ') // if fields provided, use only them
+    ? fields.split(',').map((f) => f.trim()).join(' ') // if fields provided, use only them
     : defaultFields.join(' '); // otherwise, use defaults
 
   const cacheKey = cacheKeys.userProfile(id, fields);
@@ -389,7 +410,12 @@ const getMyProfile = async (id: string, fields?: string) => {
     cacheKey,
     async () => {
       // ✅ Fetch user data from the database
-      const userData = await User.findById(id).populate('badgeId').select(selectFields);
+      const userData = await User.findById(id)
+        .populate('businessDetails.categoryId')
+        .populate('openingHoursId')
+        .populate('queueId')
+        .populate('subscriptionId')
+        .select(selectFields);
 
       if (!userData) {
         throw new AppError(httpStatus.NOT_FOUND, 'User not found');
@@ -552,6 +578,181 @@ console.log('updateValue', updateValue, 'userId', userId, 'status', status);
 
   return null;
 };
+const completeBusinessProfile = async (
+  userId: string,
+  payload: any,
+  files?: { [fieldName: string]: Express.Multer.File[] },
+) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  // Handle uploaded files
+  if (files?.coverPhoto && files.coverPhoto.length > 0) {
+    const coverPhotoPath = await storeFile('business', files.coverPhoto[0]);
+    if (!payload.businessDetails) payload.businessDetails = {};
+    payload.businessDetails.coverPhoto = coverPhotoPath;
+  }
+
+  if (files?.LegalCompliance && files.LegalCompliance.length > 0) {
+    const uploadedDocs = await storeFiles('business', {
+      LegalCompliance: files.LegalCompliance,
+    });
+    payload.LegalCompliance = uploadedDocs.LegalCompliance || [];
+  }
+
+  // Validate category if provided
+  if (payload.businessDetails?.categoryId) {
+    const categoryExists = await Category.findById(payload.businessDetails.categoryId);
+    if (!categoryExists) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Selected category does not exist');
+    }
+  }
+
+  // 1. Create or update OpeningHour document
+  let openingHourDoc;
+  if (user.openingHoursId) {
+    openingHourDoc = await OpeningHour.findByIdAndUpdate(
+      user.openingHoursId,
+      { $set: payload.openingHours || {} },
+      { new: true, upsert: true },
+    );
+  } else {
+    openingHourDoc = await OpeningHour.create(payload.openingHours || {});
+  }
+
+  // 2. Create or update Queue document
+  const queueData = {
+    businessId: userId,
+    maxCapacity: payload.queue?.maxCapacity ?? 0,
+    waitTime: payload.queue?.waitTime ?? 0,
+    skipPassPrice: payload.queue?.skipPassPrice ?? 0,
+  };
+  const queueDoc = await Queue.findOneAndUpdate(
+    { businessId: userId },
+    { $set: queueData },
+    { new: true, upsert: true },
+  );
+
+  // 3. Update User document with business details & relations
+  const userUpdateData: any = {
+    role: USER_ROLE.BUSINESS,
+    hasCompletedProfile: true,
+    openingHoursId: openingHourDoc._id,
+    queueId: queueDoc._id,
+    businessDetails: payload.businessDetails,
+  };
+
+  if (payload.LegalCompliance && payload.LegalCompliance.length > 0) {
+    userUpdateData.LegalCompliance = payload.LegalCompliance;
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { $set: userUpdateData },
+    { new: true, runValidators: true },
+  )
+    .populate('businessDetails.categoryId')
+    .populate('openingHoursId')
+    .populate('queueId')
+    .populate('subscriptionId');
+
+  if (!updatedUser) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User update failed');
+  }
+
+  // 4. Invalidate Redis cache
+  await Promise.all([
+    cacheService.delByPattern(cacheKeys.userPattern(userId)),
+    cacheService.delByPattern(cacheKeys.usersAllPattern()),
+  ]);
+
+  const tokenData = generateAndReturnTokens(updatedUser);
+  return tokenData;
+};
+
+const updateBusinessProfile = async (
+  userId: string,
+  payload: any,
+  files?: { [fieldName: string]: Express.Multer.File[] },
+) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  // Process files
+  if (files?.coverPhoto && files.coverPhoto.length > 0) {
+    const coverPhotoPath = await storeFile('business', files.coverPhoto[0]);
+    if (!payload.businessDetails) payload.businessDetails = {};
+    payload.businessDetails.coverPhoto = coverPhotoPath;
+  }
+
+  if (files?.LegalCompliance && files.LegalCompliance.length > 0) {
+    const uploadedDocs = await storeFiles('business', {
+      LegalCompliance: files.LegalCompliance,
+    });
+    const existing = user.LegalCompliance || [];
+    payload.LegalCompliance = [...existing, ...(uploadedDocs.LegalCompliance || [])];
+  }
+
+  // Validate category if provided
+  if (payload.businessDetails?.categoryId) {
+    const categoryExists = await Category.findById(payload.businessDetails.categoryId);
+    if (!categoryExists) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Selected category does not exist');
+    }
+  }
+
+  // Update opening hours if provided
+  if (payload.openingHours && user.openingHoursId) {
+    await OpeningHour.findByIdAndUpdate(
+      user.openingHoursId,
+      { $set: payload.openingHours },
+      { new: true, runValidators: true },
+    );
+  }
+
+  // Update queue if provided
+  if (payload.queue && user.queueId) {
+    await Queue.findByIdAndUpdate(
+      user.queueId,
+      { $set: payload.queue },
+      { new: true, runValidators: true },
+    );
+  }
+
+  const userUpdateData: any = {};
+  if (payload.businessDetails) {
+    userUpdateData.businessDetails = {
+      ...(user.businessDetails ? (user.businessDetails as any).toObject?.() || user.businessDetails : {}),
+      ...payload.businessDetails,
+    };
+  }
+  if (payload.LegalCompliance) {
+    userUpdateData.LegalCompliance = payload.LegalCompliance;
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { $set: userUpdateData },
+    { new: true, runValidators: true },
+  )
+    .populate('businessDetails.categoryId')
+    .populate('openingHoursId')
+    .populate('queueId')
+    .populate('subscriptionId');
+
+  // Invalidate Redis cache
+  await Promise.all([
+    cacheService.delByPattern(cacheKeys.userPattern(userId)),
+    cacheService.delByPattern(cacheKeys.usersAllPattern()),
+  ]);
+
+  return updatedUser;
+};
+
 export const userService = {
   createUserToken,
   otpVerifyAndCreateUser,
@@ -560,6 +761,8 @@ export const userService = {
   // updateMyProfile2,
   getUserById,
   completeMyProfile,
+  completeBusinessProfile,
+  updateBusinessProfile,
   deleteMyAccount,
   getAllUserQuery,
   getAllUserCount,
@@ -568,7 +771,7 @@ export const userService = {
   checkVerifiedStatus,
   createOrLoginUserWithGoogle,
   createOrLoginUserWithApple,
-  fcmTokenSetOrRemove
+  fcmTokenSetOrRemove,
 };
 
 export const UserService = userService;
