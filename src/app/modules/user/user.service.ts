@@ -143,6 +143,7 @@ const otpVerifyAndCreateUser = async ({
     password,
     fullName,
     role: role || USER_ROLE.USER,
+    hasCompletedProfile: role === USER_ROLE.BUSINESS ? false : true, // Business users need to complete profile
   };
   // Create user
   const newUser = await User.create(userData);
@@ -583,9 +584,13 @@ const completeBusinessProfile = async (
   payload: any,
   files?: { [fieldName: string]: Express.Multer.File[] },
 ) => {
+  console.log(payload,"check payload==========>")
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+  if(user.hasCompletedProfile){
+    throw new AppError(httpStatus.BAD_REQUEST, 'Your profile is already completed.');
   }
 
   // Handle uploaded files
@@ -641,7 +646,7 @@ const completeBusinessProfile = async (
     hasCompletedProfile: true,
     openingHoursId: openingHourDoc._id,
     queueId: queueDoc._id,
-    businessDetails: payload.businessDetails,
+    businessDetails: payload.businessDetails
   };
 
   if (payload.LegalCompliance && payload.LegalCompliance.length > 0) {

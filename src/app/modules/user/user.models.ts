@@ -123,7 +123,7 @@ const userSchema = new Schema<TUser>(
             type: String,
             default: '',
           },
-          BusinessAddress: {
+          businessAddress: {
             coordinates: {
               type: [Number],
             },

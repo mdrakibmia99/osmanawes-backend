@@ -57,7 +57,7 @@ const completeBusinessProfileSchema = z.object({
       categoryId: z.string({ message: 'Category ID is required' }),
       shortBio: z.string().optional(),
       coverPhoto: z.string().optional(),
-      BusinessAddress: z
+      businessAddress: z
         .object({
           coordinates: z.array(z.number()).length(2).optional(),
           address: z.string().optional(),

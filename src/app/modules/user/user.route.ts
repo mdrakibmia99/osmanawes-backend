@@ -67,7 +67,7 @@ userRoutes.patch(
 // Business Profile Completion & Updates
 userRoutes.post(
   '/complete-business-profile',
-  auth(USER_ROLE.BUSINESS, USER_ROLE.ADMIN, USER_ROLE.SUPER_ADMIN),
+  authForCompleteProfile(USER_ROLE.BUSINESS),
   businessUpload.fields([
     { name: 'coverPhoto', maxCount: 1 },
     { name: 'LegalCompliance', maxCount: 10 },
@@ -79,7 +79,7 @@ userRoutes.post(
 
 userRoutes.patch(
   '/update-business-profile',
-  auth(USER_ROLE.BUSINESS, USER_ROLE.ADMIN, USER_ROLE.SUPER_ADMIN),
+  auth(USER_ROLE.BUSINESS),
   businessUpload.fields([
     { name: 'coverPhoto', maxCount: 1 },
     { name: 'LegalCompliance', maxCount: 10 },
