@@ -111,7 +111,7 @@ export const deleteFromS3 = async (
     console.error('S3 Delete Error:', error);
   }
 };
-export const cleanupCategoryUpload = async (
+export const cleanupUpload = async (
   file?: Express.Multer.File,
   storedImage?: string
 ) => {
@@ -130,10 +130,13 @@ export const cleanupCategoryUpload = async (
     await fs.promises.unlink(file.path);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      console.error('Category upload cleanup failed:', error);
+      console.error('Upload cleanup failed:', error);
     }
   }
 };
+
+export const cleanupCategoryUpload = cleanupUpload;
+
 export const s3Helper = {
   uploadToS3,
   uploadMultipleToS3,

@@ -48,6 +48,17 @@ export const cacheKeys = {
   categoriesAllPattern: () => `categories:*`,
   categorySinglePattern: () => `category:*`,
 
+  // Menu domain
+  menuById: (menuId: string) => `menu:${menuId}:detail`,
+  menusList: (queryString: string = '') => `menus:list:${queryString || 'all'}`,
+  menusAllPattern: () => `menus:*`,
+  menuSinglePattern: () => `menu:*`,
+
+  // Teams domain
+  teamsList: (businessUserId: string, queryString: string = '') =>
+    `teams:${businessUserId}:list:${queryString || 'all'}`,
+  teamsPattern: (businessUserId: string) => `teams:${businessUserId}:*`,
+
   // Subscription & Plan domain
   activePlans: () => `subscription:plans:active`,
   plansAllPattern: () => `subscription:plans:*`,

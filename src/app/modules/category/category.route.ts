@@ -20,14 +20,6 @@ router.post(
   categoryController.createCategory
 );
 
-router.post(
-  '/',
-  auth(USER_ROLE.ADMIN, USER_ROLE.SUPER_ADMIN),
-  upload.single('image'),
-  parseData(),
-  validateRequest(categoryValidation.createCategoryValidationSchema),
-  categoryController.createCategory
-);
 
 router.get(
   '/',
@@ -48,14 +40,7 @@ router.patch(
   categoryController.updateCategory
 );
 
-router.patch(
-  '/:id',
-  auth(USER_ROLE.ADMIN, USER_ROLE.SUPER_ADMIN),
-  upload.single('image'),
-  parseData(),
-  validateRequest(categoryValidation.updateCategoryValidationSchema),
-  categoryController.updateCategory
-);
+
 
 router.delete(
   '/delete/:id',
@@ -63,11 +48,6 @@ router.delete(
   categoryController.deleteCategory
 );
 
-router.delete(
-  '/:id',
-  auth(USER_ROLE.ADMIN, USER_ROLE.SUPER_ADMIN),
-  categoryController.deleteCategory
-);
 
 export const categoryRoutes = router;
 export default router;

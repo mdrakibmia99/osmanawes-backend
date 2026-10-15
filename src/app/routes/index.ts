@@ -9,6 +9,8 @@ import { messageRoutes } from '../modules/Message/message.route';
 import { categoryRoutes } from '../modules/category/category.route';
 import { subscriptionRoutes } from '../modules/subscription/subscription.route';
 import { queueRoutes } from '../modules/queueService/queue.route';
+import { menuRoutes } from '../modules/menu/menu.route';
+import { teamsRoutes } from '../modules/Teams/teams.route';
 
 const router = Router();
 
@@ -56,6 +58,14 @@ const moduleRoutes = [
   {
     path: '/queues',
     route: queueRoutes,
+  },
+  {
+    path: '/menu',
+    route: menuRoutes,
+  },
+  {
+    path: '/teams',
+    route: teamsRoutes,
   },
 ];
 
