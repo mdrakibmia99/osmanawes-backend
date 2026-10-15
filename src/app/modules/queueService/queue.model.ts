@@ -10,6 +10,11 @@ const queueSchema = new Schema<IQueue>(
       unique: true,
       index: true,
     },
+    acceptReserVationStatus:{
+      type: Boolean,
+      default: false,
+    
+    },
     maxCapacity: {
       type: Number,
       default: 0,
@@ -17,6 +22,18 @@ const queueSchema = new Schema<IQueue>(
     waitTime: {
       type: Number,
       default: 0, // wait time in minutes
+    },
+    totalTable: {
+      type: Number,
+      default: 0,
+    },
+    totalTableBook: {
+      type: Number,
+      default: 0,
+    },
+    queueStatus: {
+      type: Boolean,
+      default: false,
     },
     skipPassPrice: {
       type: Number,

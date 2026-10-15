@@ -18,7 +18,7 @@ import { RedisService, cacheService, cacheKeys, CACHE_TTL } from '../../redis';
 
 import { LOGIN_WITH } from '../auth/auth.constant';
 import { OpeningHour } from '../openingHour/openingHour.model';
-import { Queue } from '../queue/queue.model';
+import { Queue } from '../queueService/queue.model';
 import { Category } from '../category/category.model';
 import { storeFile, storeFiles } from '../../utils/fileHelper';
 
