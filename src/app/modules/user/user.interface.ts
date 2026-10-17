@@ -17,6 +17,14 @@ export interface TBusinessDetails {
   BusinessAddress?: TBusinessAddress;
 }
 
+export interface TPushNotificationOptions {
+  queuePositionUpdates: boolean;
+  passExpiringSoon: boolean;
+  pointsEarned: boolean;
+  newMessage: boolean;
+  refundUpdates: boolean;
+}
+
 export interface TUser {
   _id?: Types.ObjectId | string;
   appleId?: string;
@@ -61,6 +69,7 @@ export interface TUser {
   subscriptionId?: Types.ObjectId | string;
   queueId?: Types.ObjectId | string;
   LegalCompliance?: string[];
+  pushNotificationOptions?: TPushNotificationOptions;
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -97,6 +106,7 @@ export interface TUserCreate {
   subscriptionId?: Types.ObjectId | string;
   queueId?: Types.ObjectId | string;
   LegalCompliance?: string[];
+  pushNotificationOptions?: TPushNotificationOptions;
 }
 
 export interface DeleteAccountPayload {

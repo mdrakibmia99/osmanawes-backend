@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import { USER_ROLE } from './user.constants';
 
+const pushNotificationOptionsSchema = z
+  .object({
+    queuePositionUpdates: z.boolean().optional(),
+    passExpiringSoon: z.boolean().optional(),
+    pointsEarned: z.boolean().optional(),
+    newMessage: z.boolean().optional(),
+    refundUpdates: z.boolean().optional(),
+  })
+  .optional();
+
 const userValidationSchema = z.object({
   body: z.object({
     password: z
@@ -34,6 +44,7 @@ const updateProfileSchema = z.object({
       .optional(),
     dob: z.string({ message: 'Date of birth is required' }).optional(),
     gender: z.enum(['male', 'female', 'other', 'N/A']).optional(),
+    pushNotificationOptions: pushNotificationOptionsSchema,
   }),
 });
 
@@ -122,6 +133,7 @@ const updateBusinessProfileSchema = z.object({
       })
       .optional(),
     LegalCompliance: z.array(z.string()).optional(),
+    pushNotificationOptions: pushNotificationOptionsSchema,
   }),
 });
 

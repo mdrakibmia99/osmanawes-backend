@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import { Error, model, Query, Schema } from 'mongoose';
 import config from '../../config';
-import { TUser, UserModel } from './user.interface';
+import { TPushNotificationOptions, TUser, UserModel } from './user.interface';
 import { gender, GENDER_ENUM, SUBSCRIPTION_TYPES, SUBSCRIPTION_TYPES_ENUM, USER_ROLE, USER_ROLE_ENUM } from './user.constants';
 import { LOGIN_WITH, LOGIN_WITH_ENUM } from '../auth/auth.constant';
 import { AddressSchema } from '../../utils/locationWithLatLan';
@@ -155,6 +155,19 @@ const userSchema = new Schema<TUser>(
       type: [String],
       default: undefined,
     },
+    pushNotificationOptions: {
+      type: new Schema<TPushNotificationOptions>(
+        {
+          queuePositionUpdates: { type: Boolean, default: true },
+          passExpiringSoon: { type: Boolean, default: true },
+          pointsEarned: { type: Boolean, default: true },
+          newMessage: { type: Boolean, default: true },
+          refundUpdates: { type: Boolean, default: true },
+        },
+        { _id: false },
+      ),
+      default: () => ({}),
+    },
   },
   {
     timestamps: true,
@@ -271,7 +284,6 @@ userSchema.statics.isPasswordMatched = async function (
 };
 
 export const User = model<TUser, UserModel>('User', userSchema);
-
 
 
 

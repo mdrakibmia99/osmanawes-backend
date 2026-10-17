@@ -39,6 +39,10 @@ const queueSchema = new Schema<IQueue>(
       type: Number,
       default: 0,
     },
+    passBenefit:{
+      type: [String],
+      default:[]
+    }
   },
   {
     timestamps: true,

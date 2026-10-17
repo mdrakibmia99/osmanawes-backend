@@ -10,6 +10,7 @@ export interface IQueue {
   queueStatus: boolean;
   totalTable: number;
   totalTableBook: number;
+  passBenefit: string[];
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -455,9 +455,17 @@ const completeMyProfile = async (userId: string, payload: Partial<TUser>) => {
 };
 
 const updateMyProfile = async (userId: string, payload: Partial<TUser>) => {
+  const updateData: Record<string, unknown> = { ...payload };
+  delete updateData.pushNotificationOptions;
+  if (payload.pushNotificationOptions) {
+    for (const [key, value] of Object.entries(payload.pushNotificationOptions)) {
+      updateData[`pushNotificationOptions.${key}`] = value;
+    }
+  }
+
   const updateProfile = await User.findByIdAndUpdate(
     userId,
-    { $set: payload },
+    { $set: updateData },
     { new: true, runValidators: true }
   ).lean();
   if (!updateProfile) {
@@ -738,6 +746,11 @@ const updateBusinessProfile = async (
   if (payload.LegalCompliance) {
     userUpdateData.LegalCompliance = payload.LegalCompliance;
   }
+  if (payload.pushNotificationOptions) {
+    for (const [key, value] of Object.entries(payload.pushNotificationOptions)) {
+      userUpdateData[`pushNotificationOptions.${key}`] = value;
+    }
+  }
 
   const updatedUser = await User.findByIdAndUpdate(
     userId,
@@ -780,4 +793,3 @@ export const userService = {
 };
 
 export const UserService = userService;
-
