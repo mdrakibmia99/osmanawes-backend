@@ -11,6 +11,7 @@ import { subscriptionRoutes } from '../modules/subscription/subscription.route';
 import { queueRoutes } from '../modules/queueService/queue.route';
 import { menuRoutes } from '../modules/menu/menu.route';
 import { teamsRoutes } from '../modules/Teams/teams.route';
+import { openAiRoutes } from '../modules/openai/openai.route';
 
 const router = Router();
 
@@ -66,6 +67,10 @@ const moduleRoutes = [
   {
     path: '/teams',
     route: teamsRoutes,
+  },
+  {
+    path: '/openai',
+    route: openAiRoutes,
   },
 ];
 

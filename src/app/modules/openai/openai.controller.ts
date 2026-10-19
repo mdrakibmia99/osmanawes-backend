@@ -6,7 +6,7 @@ import { openaiService } from "./openai.service";
 const AIScriptGenerator = catchAsync(async (req: Request, res: Response) => {
 
 
-    const result = await openaiService.AIScriptGenerator(req.user.userId,req.body);
+    const result = await openaiService.AIScriptGenerator(req.body);
 
     sendResponse(res, {
         statusCode: httpStatus.OK,

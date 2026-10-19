@@ -1,7 +1,7 @@
 import { generatePracticeScript, IScriptGeneratorPayload } from "../../utils/AI/scriptGenerator";
 
-const AIScriptGenerator = async (userId:string,payload: IScriptGeneratorPayload) => {
-    const formattedText = await generatePracticeScript(userId,payload);
+const AIScriptGenerator = async (payload: IScriptGeneratorPayload) => {
+    const formattedText = await generatePracticeScript(payload);
     return formattedText;
 };
 

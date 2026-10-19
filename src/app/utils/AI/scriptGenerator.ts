@@ -16,46 +16,10 @@ export interface IScriptGeneratorPayload {
 }
 
 export const generatePracticeScript = async (
-  userId: string,
   payload: IScriptGeneratorPayload
 ): Promise<string> => {
-  const userData = await User.findById(userId).lean();
 
-  if (!userData) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
-  }
 
-  const { subscriptionType, scriptGeneratedCount } = userData;
-
-  let scriptLimit = 0;
-  let isUnlimited = false;
-
-  switch (subscriptionType) {
-    case SUBSCRIPTION_TYPES.FREE:
-      scriptLimit = 10;
-      break;
-
-    case SUBSCRIPTION_TYPES.PRO:
-      scriptLimit = 50;
-      break;
-
-    case SUBSCRIPTION_TYPES.PREMIUM:
-      isUnlimited = true;
-      break;
-
-    default:
-      scriptLimit = 10;
-  }
-
-  // 🔒 enforce limit (skip for premium)
-  if (!isUnlimited && (scriptGeneratedCount ?? 0) >= scriptLimit) {
-    throw new AppError(
-      httpStatus.FORBIDDEN,
-      `Script generation limit reached for ${subscriptionType} plan`
-    );
-  }
-
-  console.log('Generating script with payload:', payload);
   try {
     const { category, tone, duration } = payload;
 
@@ -110,17 +74,7 @@ Generate a professional audition practice script.
       );
     }
 
-    await User.findByIdAndUpdate(
-      userId,
-      {
-        $inc: {
-          scriptGeneratedCount: 1,
-        },
-      },
-      {
-        new: true,
-      }
-    );
+
 
     return generatedScript;
   } catch (err: any) {

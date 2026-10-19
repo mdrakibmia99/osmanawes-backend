@@ -7,4 +7,4 @@ import auth from "../../middleware/auth";
 
 export const openAiRoutes = Router();
 
-openAiRoutes.post('/script-generator', auth(USER_ROLE.USER), validateRequest(openaiValidations.generatePracticeScriptValidationSchema), openaiController.AIScriptGenerator);
+openAiRoutes.post('/script-generator', validateRequest(openaiValidations.generatePracticeScriptValidationSchema), openaiController.AIScriptGenerator);
